@@ -414,19 +414,72 @@ public:
   }
 
  [[eosio::action]] void stake(name from, name provider, name service, asset quantity) {
+    // require_auth(from);
+    // require_recipient(provider);
+    // require_recipient(service);
+    // dist_rewards(from, provider, service);
+    // add_provider_balance(from, from, service, provider, quantity);
+    // sub_balance(from, quantity);
+    // add_total_staked(quantity);
+
+    staketo(from, from, provider, service, quantity);
+  }
+
+  [[eosio::action]] void staketo(name from, name to, name provider, name service, asset quantity) {
     require_auth(from);
     require_recipient(provider);
     require_recipient(service);
-    dist_rewards(from, provider, service);
-    add_provider_balance(from, service, provider, quantity);
+    require_recipient(to);
+    dist_rewards(to, provider, service);
+    add_provider_balance(from, to, service, provider, quantity);
     sub_balance(from, quantity);
     add_total_staked(quantity);
   }
 
  [[eosio::action]] void unstake(name to, name provider, name service, asset quantity) {
-    require_auth(to);
+    // require_auth(to);
+    // require_recipient(provider);
+    // require_recipient(service);
+    // dist_rewards(to, provider, service);
+    // auto current_time_ms = current_time_point().time_since_epoch().count() / 1000;
+    // uint64_t unstake_time = current_time_ms + getUnstakeRemaining(to,provider,service);
+    
+    // auto sym = quantity.symbol;
+    // eosio::check(DAPPSERVICES_SYMBOL == sym,
+    //              "wrong symbol or precision");
+
+    // refunds_table refunds_tbl(_self, to.value);
+    // auto idxKey = refundreq::_by_symbol_service_provider(
+    //     quantity.symbol.code(), service, provider);
+    // auto cidx = refunds_tbl.get_index<"byprov"_n>();
+    // auto req = cidx.find(idxKey);
+    // if (req != cidx.end()) {
+    //   cidx.modify(req, eosio::same_payer, [&](refundreq &r) {
+    //     r.unstake_time = unstake_time;
+    //     r.amount += quantity;
+    //   });
+    // } else {
+    //   refunds_tbl.emplace(to, [&](refundreq &r) {
+    //     r.id = refunds_tbl.available_primary_key();
+    //     r.unstake_time = unstake_time;
+    //     r.amount = quantity;
+    //     r.provider = provider;
+    //     r.service = service;
+    //   });
+    // }
+    // uint64_t secondsLeft = 
+    //     (unstake_time - current_time_ms) / 1000; // calc how much left
+    // if(unstake_time < current_time_ms || secondsLeft == 0)
+    //   secondsLeft = 1;
+    // scheduleRefund(secondsLeft, to, provider, service, quantity.symbol.code());
+    unstaketo(to,to,provider,service,quantity);
+  }
+
+  [[eosio::action]] void unstaketo(name from, name to, name provider, name service, asset quantity) {
+    require_auth(from);
     require_recipient(provider);
     require_recipient(service);
+    require_recipient(to);
     dist_rewards(to, provider, service);
     auto current_time_ms = current_time_point().time_since_epoch().count() / 1000;
     uint64_t unstake_time = current_time_ms + getUnstakeRemaining(to,provider,service);
@@ -435,9 +488,27 @@ public:
     eosio::check(DAPPSERVICES_SYMBOL == sym,
                  "wrong symbol or precision");
 
-    refunds_table refunds_tbl(_self, to.value);
+
+    // Reduce stake tables and ensure we don't unstake more than we staked
+    // We can now assume that the sum of stake and refund tables
+    // will always equal the accountext balance
+    staking_t stakes(_self, from.value));
+    auto stakeKey = stakes::_by_account_service_provider(to, service, provider);
+    auto stakeIdx = stakes.get_index<"byprov"_n>();
+    auto stake = stakeIdx.find(stakeKey);
+    eosio_assert(stake != stakeIdx.end(), "stake not found");
+    eosio_assert(quantity.amount <= stake->balance.amount, "you cannot unstake more than you have staked")
+
+    if(quantity.amount < stake->balance.amount) {
+      stakeIdx.modify(stake, eosio::same_payer,
+                      [&](auto &a) { a.balance -= quantity; });
+    } else {
+      stakeIdx.erase(stake);
+    }
+
+    refunds_table refunds_tbl(_self, from.value);
     auto idxKey = refundreq::_by_symbol_service_provider(
-        quantity.symbol.code(), service, provider);
+        quantity.symbol.code(), to, service, provider);
     auto cidx = refunds_tbl.get_index<"byprov"_n>();
     auto req = cidx.find(idxKey);
     if (req != cidx.end()) {
@@ -449,6 +520,7 @@ public:
       refunds_tbl.emplace(to, [&](refundreq &r) {
         r.id = refunds_tbl.available_primary_key();
         r.unstake_time = unstake_time;
+        r.account = to;
         r.amount = quantity;
         r.provider = provider;
         r.service = service;
@@ -458,17 +530,59 @@ public:
         (unstake_time - current_time_ms) / 1000; // calc how much left
     if(unstake_time < current_time_ms || secondsLeft == 0)
       secondsLeft = 1;
-    scheduleRefund(secondsLeft, to, provider, service, quantity.symbol.code());
+    scheduleRefund(secondsLeft, from, to, provider, service, quantity.symbol.code());
   }
 
  [[eosio::action]] void refund(name to, name provider, name service, symbol_code symcode) {
-    require_auth(to);
+    // require_auth(to);
+    // require_recipient(provider);
+    // require_recipient(service);
+    // auto current_time_ms = current_time_point().time_since_epoch().count() / 1000;
+    // refunds_table refunds_tbl(_self, to.value);
+    // auto idxKey =
+    //     refundreq::_by_symbol_service_provider(symcode, service, provider);
+    // auto cidx = refunds_tbl.get_index<"byprov"_n>();
+    // auto req = cidx.find(idxKey);
+    // eosio::check(req != cidx.end(), "refund request not found");
+    // dist_rewards(to, provider, service);
+    // uint64_t secondsLeft = 
+    //     (req->unstake_time - current_time_ms) / 1000; // calc how much left
+    // if(req->unstake_time < current_time_ms)
+    //   secondsLeft = 0;
+    // if (secondsLeft > 0) {
+    //   scheduleRefund(secondsLeft, to, to, provider, service, symcode);
+    //   return;
+    // }
+
+    // auto quantity = req->amount;
+    // accountexts_t accountexts(_self, DAPPSERVICES_SYMBOL.code().raw());
+    // auto idxKeyAcct =
+    //     accountext::_by_account_service_provider(to, service, provider);
+    // auto cidxacct = accountexts.get_index<"byprov"_n>();
+    // auto acct = cidxacct.find(idxKeyAcct);
+    // auto sym = quantity.symbol;
+    
+    // if(acct != cidxacct.end() && DAPPSERVICES_SYMBOL == sym){
+    //   if(quantity > acct->balance)
+    //     quantity = acct->balance;
+    //   sub_provider_balance(to, service, provider, quantity);
+    //   sub_total_staked(quantity);
+    //   add_balance(to, quantity, to);
+    // }
+    // cidx.erase(req);
+    refundto(to,to,provider,service,symcode);
+  }
+
+  [[eosio::action]] void refundto(name from, name to, name provider, name service, symbol_code symcode) {
+    require_auth(from);
     require_recipient(provider);
     require_recipient(service);
+    require_recipient(from);
+
     auto current_time_ms = current_time_point().time_since_epoch().count() / 1000;
-    refunds_table refunds_tbl(_self, to.value);
+    refunds_table refunds_tbl(_self, from.value);
     auto idxKey =
-        refundreq::_by_symbol_service_provider(symcode, service, provider);
+        refundreq::_by_symbol_service_provider(symcode, to, service, provider);
     auto cidx = refunds_tbl.get_index<"byprov"_n>();
     auto req = cidx.find(idxKey);
     eosio::check(req != cidx.end(), "refund request not found");
@@ -478,7 +592,7 @@ public:
     if(req->unstake_time < current_time_ms)
       secondsLeft = 0;
     if (secondsLeft > 0) {
-      scheduleRefund(secondsLeft, to, provider, service, symcode);
+      scheduleRefund(secondsLeft, from, to, provider, service, symcode);
       return;
     }
 
@@ -491,11 +605,12 @@ public:
     auto sym = quantity.symbol;
     
     if(acct != cidxacct.end() && DAPPSERVICES_SYMBOL == sym){
-      if(quantity > acct->balance)
-        quantity = acct->balance;
+      // we don't need this because refunds never exceed stakes now
+      // if(quantity > acct->balance) 
+      //   quantity = acct->balance;
       sub_provider_balance(to, service, provider, quantity);
       sub_total_staked(quantity);
-      add_balance(to, quantity, to);
+      add_balance(from, quantity, from);
     }
     cidx.erase(req);
   }
@@ -594,7 +709,7 @@ private:
     });
   }
   
-  void add_provider_balance(name owner, name service, name provider,
+  void add_provider_balance(name payer, name owner, name service, name provider,
                             asset quantity) {
     accountexts_t accountexts(_self, DAPPSERVICES_SYMBOL.code().raw());
     auto idxKey =
@@ -606,6 +721,27 @@ private:
 
     cidx.modify(acct, eosio::same_payer,
                 [&](auto &a) { a.balance += quantity; });
+
+
+    //START STAKETO MODIFICATION
+    staking_t stakes(_self, payer.value));
+    auto stakeKey = stakes::_by_account_service_provider(owner, service, provider);
+    auto stakeIdx = stakes.get_index<"byprov"_n>();
+    auto stake = stakeIdx.find(stakeKey);
+
+    if(stake != stakeIdx.end()) {
+      stakeIdx.modify(stake, eosio::same_payer,
+                      [&](auto &a) { a.balance += quantity; });
+    } else {
+      rewards.emplace(payer, [&](auto &a) { 
+        a.id = stakes.available_primary_key();        
+        a.account = owner;  
+        a.balance = quantity;
+        a.service = service;
+        a.provider = provider;           
+      });
+    }
+    //END STAKETO MODIFICATION            
                 
     auto current_time_ms = current_time_point().time_since_epoch().count() / 1000;
     rewards_t rewards(_self, provider.value);
@@ -683,17 +819,22 @@ private:
     }
   }
 
-  void scheduleRefund(uint32_t seconds, name to, name provider, name service,
+  //MODIFIED FOR STAKE TO
+  void scheduleRefund(uint32_t seconds, name from, name to, name provider, name service,
                       symbol_code symcode) {
     using namespace eosio;
     auto trx = transaction();
     trx.actions.emplace_back(
         std::vector<permission_level>{{name(current_receiver()), "active"_n}},
-        _self, "refund"_n, std::make_tuple(to, provider, service, symcode));
+        _self, "refundto"_n, std::make_tuple(from, to, provider, service, symcode));
     trx.delay_sec = seconds;
-    cancel_deferred(to.value);
-    trx.send(to.value, _self, true);
+
+    uint128_t defidx = (uint128_t{from.value}<<64) | to.value
+    cancel_deferred(defidx);
+    trx.send(defidx, _self, true);
   }
+
+
   void applyInflation() {
     auto sym = DAPPSERVICES_SYMBOL;
     stats_ext statsexts(_self, sym.code().raw());

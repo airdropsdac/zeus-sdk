@@ -263,23 +263,48 @@ struct usage_t {
     uint64_t primary_key() const { return staked.symbol.code().raw(); }
   };
 
+  //START THIRD PARTY STAKING MODS
   TABLE refundreq {
     uint64_t id;
+    name account; //ADDED: account that was staked to
     asset amount;
     name provider;
     name service;
     uint64_t unstake_time;
     uint64_t primary_key() const { return id; }
     checksum256 by_symbol_service_provider() const {
-      return _by_symbol_service_provider(amount.symbol.code(), service,
+      return _by_symbol_service_provider(amount.symbol.code(), account, service,
                                            provider);
     }
     static checksum256 _by_symbol_service_provider(symbol_code symbolCode,
-                                                name service, name provider) {
+                                  name account, name service, name provider) {
       return checksum256::make_from_word_sequence<uint64_t>(
-          0ULL, symbolCode.raw(), service.value, provider.value);
+          symbolCode.raw(), account.value, service.value, provider.value);
     }
   };
+
+  
+  //we will scope to the payer/thirdparty
+  TABLE staking {    
+    uint64_t id;            //id to ensure uniqueness
+
+    name account;           //account that was staked to
+    asset balance;
+    name provider;
+    name service;
+
+    uint64_t primary_key() const { return id; }
+
+    checksum256 by_account_service_provider() const {
+      return _by_account_service_provider(account, service, provider);
+    }
+    static checksum256 _by_account_service_provider(name account,
+                                                name service, name provider) {
+      return checksum256::make_from_word_sequence<uint64_t>(
+          0ULL, account.value, service.value, provider.value);
+    }
+  };
+  //END THIRD PARTY STAKING MODS
 
   TABLE package {
     uint64_t id;
@@ -381,6 +406,14 @@ struct usage_t {
                                &accountext::by_account_service>>
                                >
       accountexts_t; 
+
+  typedef eosio::multi_index<
+      "staking"_n, staking,
+      indexed_by<"byprov"_n,
+                 const_mem_fun<staking, checksum256,
+                               &staking::by_account_service_provider>>
+                               >
+      staking_t;     
 
 std::vector<name> getProvidersForAccount(name account, name service) {       
   // get from service account                                                
