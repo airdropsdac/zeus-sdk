@@ -439,8 +439,7 @@ public:
   }
 
   [[eosio::action]] void refundto(name from, name to, name provider, name service, symbol_code symcode) {
-    require_auth(from);
-    
+    require_auth(from);      
 
     auto current_time_ms = current_time_point().time_since_epoch().count() / 1000;
     refunds_table refunds_tbl(_self, from.value);
@@ -470,15 +469,27 @@ public:
     if(acct != cidxacct.end() && DAPPSERVICES_SYMBOL == sym){
       // we don't need this because refunds never exceed stakes now
       // if(quantity > acct->balance) 
-      //   quantity = acct->balance;
+      //   quantity = acct->balance;  
+
       require_recipient(provider);
-      require_recipient(service);
-      require_recipient(from);
+      require_recipient(service);    
+
       sub_provider_balance(to, service, provider, quantity);
       sub_total_staked(quantity);
       add_balance(from, quantity, from);
+
+      action(permission_level{_self, "active"_n}, 
+        _self, "refreceipt"_n,
+        std::make_tuple(_self, owner, quantity))
+      .send();
     }
     cidx.erase(req);
+  }
+
+  [[eosio::action]] void refreceipt(name from, name to, asset quantity) {
+    require_auth(_self);
+    require_recepient(from);
+    require_recepient(to);
   }
 
  [[eosio::action]] void usage(usage_t usage_report) {
@@ -929,9 +940,11 @@ void apply(uint64_t receiver, uint64_t code, uint64_t action) {
   if (code == receiver) {
     switch (action) {
       EOSIO_DISPATCH_HELPER(
-          dappservices, (usage)(stake)(unstake)(refund)(claimrewards)(create)(
-                          issue)(transfer)(open)(close)(retire)(selectpkg)(
-                          regpkg)(closeprv)(modifypkg))
+          dappservices, (usage)(stake)(unstake)(refund)
+                        (staketo)(unstaketo)(refundto)(refreceipt)
+                        (claimrewards)(create)(issue)(transfer)
+                        (open)(close)(retire)
+                        (selectpkg)(regpkg)(closeprv)(modifypkg))
     }
   } else {
     switch (action) { EOSIO_DISPATCH_HELPER(dappservices, (xsignal)) }
