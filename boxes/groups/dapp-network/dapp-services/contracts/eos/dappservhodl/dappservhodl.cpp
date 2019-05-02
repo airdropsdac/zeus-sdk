@@ -210,10 +210,23 @@ void dappservhodl::add_stake( name owner, asset value ) {
    const auto& from = from_acnts.get( value.symbol.code().raw(), "no balance object found" );
    eosio_assert( from.balance.amount >= value.amount, "overdrawn balance" );
 
-   from_acnts.modify( from, owner, [&]( auto& a ) {
-      a.balance -= value;
-      a.staked += value;
-   });
+   if(from.claimed) {
+      from_acnts.modify( from, owner, [&]( auto& a ) {
+         a.balance -= value;
+         a.staked += value;
+      });
+   } else {
+      //lets perform a grab if they haven't yet
+      asset balance = from.balance - value;
+      asset staked  = from.staked + value;
+      from_acnts.erase(from);
+
+      from_acnts.emplace( owner, [&]( auto& a ){
+         a.balance = balance;
+         a.staked  = staked;
+         a.claimed = true;
+      });
+   }   
 }
 
 void dappservhodl::sub_stake( name owner, asset value )
