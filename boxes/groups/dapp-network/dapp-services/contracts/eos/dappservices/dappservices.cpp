@@ -575,9 +575,7 @@ public:
 
   [[eosio::action]] void refundto(name from, name to, name provider, name service, symbol_code symcode) {
     require_auth(from);
-    require_recipient(provider);
-    require_recipient(service);
-    require_recipient(from);
+    
 
     auto current_time_ms = current_time_point().time_since_epoch().count() / 1000;
     refunds_table refunds_tbl(_self, from.value);
@@ -608,6 +606,9 @@ public:
       // we don't need this because refunds never exceed stakes now
       // if(quantity > acct->balance) 
       //   quantity = acct->balance;
+      require_recipient(provider);
+      require_recipient(service);
+      require_recipient(from);
       sub_provider_balance(to, service, provider, quantity);
       sub_total_staked(quantity);
       add_balance(from, quantity, from);
