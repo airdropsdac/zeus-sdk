@@ -64,7 +64,7 @@ public:
 
     packages.emplace(newpackage.provider, [&](package &r) {
       // start disabled.
-      r.enabled = true;
+      //r.enabled = true;
       r.id = packages.available_primary_key();
       r.provider = newpackage.provider;
       r.service = newpackage.service;
@@ -357,12 +357,12 @@ public:
     // Reduce stake tables and ensure we don't unstake more than we staked
     // We can now assume that the sum of stake and refund tables
     // will always equal the accountext balance
-    staking_t stakes(_self, from.value));
-    auto stakeKey = stakes::_by_account_service_provider(to, service, provider);
+    staking_t stakes(_self, from.value);
+    auto stakeKey = staking::_by_account_service_provider(to, service, provider);
     auto stakeIdx = stakes.get_index<"byprov"_n>();
     auto stake = stakeIdx.find(stakeKey);
-    eosio_assert(stake != stakeIdx.end(), "stake not found");
-    eosio_assert(quantity.amount <= stake->balance.amount, "you cannot unstake more than you have staked")
+    eosio::check(stake != stakeIdx.end(), "stake not found");
+    eosio::check(quantity.amount <= stake->balance.amount, "you cannot unstake more than you have staked");
 
     if(quantity.amount < stake->balance.amount) {
       stakeIdx.modify(stake, eosio::same_payer,
@@ -480,7 +480,7 @@ public:
 
       action(permission_level{_self, "active"_n}, 
         _self, "refreceipt"_n,
-        std::make_tuple(_self, owner, quantity))
+        std::make_tuple(_self, from, quantity))
       .send();
     }
     cidx.erase(req);
@@ -488,8 +488,8 @@ public:
 
   [[eosio::action]] void refreceipt(name from, name to, asset quantity) {
     require_auth(_self);
-    require_recepient(from);
-    require_recepient(to);
+    require_recipient(from);
+    require_recipient(to);
   }
 
  [[eosio::action]] void usage(usage_t usage_report) {
@@ -601,8 +601,8 @@ private:
 
 
     //START STAKETO MODIFICATION
-    staking_t stakes(_self, payer.value));
-    auto stakeKey = stakes::_by_account_service_provider(owner, service, provider);
+    staking_t stakes(_self, payer.value);
+    auto stakeKey = staking::_by_account_service_provider(owner, service, provider);
     auto stakeIdx = stakes.get_index<"byprov"_n>();
     auto stake = stakeIdx.find(stakeKey);
 
@@ -610,7 +610,7 @@ private:
       stakeIdx.modify(stake, eosio::same_payer,
                       [&](auto &a) { a.balance += quantity; });
     } else {
-      rewards.emplace(payer, [&](auto &a) { 
+      stakes.emplace(payer, [&](auto &a) { 
         a.id = stakes.available_primary_key();        
         a.account = owner;  
         a.balance = quantity;
@@ -706,7 +706,7 @@ private:
         _self, "refundto"_n, std::make_tuple(from, to, provider, service, symcode));
     trx.delay_sec = seconds;
 
-    uint128_t defidx = (uint128_t{from.value}<<64) | to.value
+    uint128_t defidx = (uint128_t{from.value}<<64) | to.value;
     cancel_deferred(defidx);
     trx.send(defidx, _self, true);
   }

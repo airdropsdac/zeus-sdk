@@ -322,7 +322,7 @@ struct usage_t {
     asset min_stake_quantity;
     uint32_t min_unstake_period; // commitment
     // uint32_t min_staking_period;
-    // bool enabled;
+    bool enabled;
 
     uint64_t primary_key() const { return id; }
     checksum256 by_package_service_provider() const {
