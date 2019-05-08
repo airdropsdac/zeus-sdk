@@ -374,29 +374,9 @@ struct usage_t {
     }
   };
 
-  typedef eosio::multi_index<
-      "refundreq"_n, refundreq,
-      indexed_by<"byprov"_n,
-                 const_mem_fun<refundreq, checksum256,
-                               &refundreq::by_symbol_service_provider>
-                >
-      >
-      refunds_table;
+//MOVED TYPE DEFS TO CLASS
 
-  typedef eosio::multi_index<
-      "package"_n, package,
-      indexed_by<"bypkg"_n,
-                 const_mem_fun<package, checksum256,
-                               &package::by_package_service_provider>>>
-      packages_t;
-
-  typedef eosio::multi_index<"stat"_n, currency_stats> stats;
-  typedef eosio::multi_index<"statext"_n, currency_stats_ext> stats_ext;
-  typedef eosio::multi_index<"accounts"_n, account> accounts;
-  typedef eosio::multi_index<"reward"_n, reward> rewards_t;
-  
-  
-  typedef eosio::multi_index<
+typedef eosio::multi_index<
       "accountext"_n, accountext,
       indexed_by<"byprov"_n,
                  const_mem_fun<accountext, checksum256,
@@ -405,17 +385,9 @@ struct usage_t {
                  const_mem_fun<accountext, uint128_t,
                                &accountext::by_account_service>>
                                >
-      accountexts_t; 
+      accountexts_t;     
 
-  typedef eosio::multi_index<
-      "staking"_n, staking,
-      indexed_by<"byprov"_n,
-                 const_mem_fun<staking, checksum256,
-                               &staking::by_account_service_provider>>
-                               >
-      staking_t;     
-
-std::vector<name> getProvidersForAccount(name account, name service) {       
+  std::vector<name> getProvidersForAccount(name account, name service) {       
   // get from service account                                                
   accountexts_t accountexts(DAPPSERVICES_CONTRACT, DAPPSERVICES_SYMBOL.code().raw());            
   auto idxKey =                                                                
@@ -428,7 +400,8 @@ std::vector<name> getProvidersForAccount(name account, name service) {
     acct++;
   }
   return result; 
-} 
+}     
+
 
 void dispatchUsage(usage_t usage_report) { 
   action(permission_level{name(current_receiver()), "active"_n},              
