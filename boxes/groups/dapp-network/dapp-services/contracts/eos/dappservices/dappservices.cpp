@@ -154,7 +154,7 @@ public:
 
   
   typedef eosio::multi_index<
-      "refundreq"_n, refundreq,
+      "refunds"_n, refundreq,
       indexed_by<"byprov"_n,
                  const_mem_fun<refundreq, checksum256,
                                &refundreq::by_symbol_service_provider>
@@ -451,19 +451,40 @@ public:
     require_recipient(provider);
   }
 
- [[eosio::action]] void stake(name from, name provider, name service, asset quantity) {
-    // require_auth(from);
-    // require_recipient(provider);
-    // require_recipient(service);
-    // dist_rewards(from, provider, service);
-    // add_provider_balance(from, from, service, provider, quantity);
-    // sub_balance(from, quantity);
-    // add_total_staked(quantity);
+ [[eosio::action]] void migratestake(uint64_t id) {
+   accountexts_t accountexts(_self, DAPPSERVICES_SYMBOL.code().raw());
+    auto acct = accountexts.find(id);
+    //we want to fail gracefully for the batches
+    if(acct != accountexts.end()) {
+      name owner = acct->account;
+      name service = acct->service;
+      name provider = acct->provider;
+      asset quantity = acct->balance;
 
+      staking_t stakes(_self, owner.value);
+      auto stakeKey = staking::_by_account_service_provider(owner, service, provider);
+      auto stakeIdx = stakes.get_index<"byprov"_n>();
+      auto stake = stakeIdx.find(stakeKey);
+
+      //they already have a stake in the new system, we can skip
+      if(stake == stakeIdx.end()) {
+        stakes.emplace(_self, [&](auto &a) { 
+          a.id = stakes.available_primary_key();        
+          a.account = owner;  
+          a.balance = quantity;
+          a.service = service;
+          a.provider = provider;           
+        });
+      }
+    }
+ }
+
+ [[eosio::action]] void stake(name from, name provider, name service, asset quantity) {
     staketo(from, from, provider, service, quantity);
   }
 
   [[eosio::action]] void staketo(name from, name to, name provider, name service, asset quantity) {
+    eosio::check(false,"Staking is temporarily frozen while we migrate tables"); //TODO: Remove after migration
     require_auth(from);
     require_recipient(provider);
     require_recipient(service);
@@ -475,41 +496,6 @@ public:
   }
 
  [[eosio::action]] void unstake(name to, name provider, name service, asset quantity) {
-    // require_auth(to);
-    // require_recipient(provider);
-    // require_recipient(service);
-    // dist_rewards(to, provider, service);
-    // auto current_time_ms = current_time_point().time_since_epoch().count() / 1000;
-    // uint64_t unstake_time = current_time_ms + getUnstakeRemaining(to,provider,service);
-    
-    // auto sym = quantity.symbol;
-    // eosio::check(DAPPSERVICES_SYMBOL == sym,
-    //              "wrong symbol or precision");
-
-    // refunds_table refunds_tbl(_self, to.value);
-    // auto idxKey = refundreq::_by_symbol_service_provider(
-    //     quantity.symbol.code(), service, provider);
-    // auto cidx = refunds_tbl.get_index<"byprov"_n>();
-    // auto req = cidx.find(idxKey);
-    // if (req != cidx.end()) {
-    //   cidx.modify(req, eosio::same_payer, [&](refundreq &r) {
-    //     r.unstake_time = unstake_time;
-    //     r.amount += quantity;
-    //   });
-    // } else {
-    //   refunds_tbl.emplace(to, [&](refundreq &r) {
-    //     r.id = refunds_tbl.available_primary_key();
-    //     r.unstake_time = unstake_time;
-    //     r.amount = quantity;
-    //     r.provider = provider;
-    //     r.service = service;
-    //   });
-    // }
-    // uint64_t secondsLeft = 
-    //     (unstake_time - current_time_ms) / 1000; // calc how much left
-    // if(unstake_time < current_time_ms || secondsLeft == 0)
-    //   secondsLeft = 1;
-    // scheduleRefund(secondsLeft, to, provider, service, quantity.symbol.code());
     unstaketo(to,to,provider,service,quantity);
   }
 
@@ -555,7 +541,7 @@ public:
         r.amount += quantity;
       });
     } else {
-      refunds_tbl.emplace(to, [&](refundreq &r) {
+      refunds_tbl.emplace(from, [&](refundreq &r) {
         r.id = refunds_tbl.available_primary_key();
         r.unstake_time = unstake_time;
         r.account = to;
@@ -572,48 +558,11 @@ public:
   }
 
  [[eosio::action]] void refund(name to, name provider, name service, symbol_code symcode) {
-    // require_auth(to);
-    // require_recipient(provider);
-    // require_recipient(service);
-    // auto current_time_ms = current_time_point().time_since_epoch().count() / 1000;
-    // refunds_table refunds_tbl(_self, to.value);
-    // auto idxKey =
-    //     refundreq::_by_symbol_service_provider(symcode, service, provider);
-    // auto cidx = refunds_tbl.get_index<"byprov"_n>();
-    // auto req = cidx.find(idxKey);
-    // eosio::check(req != cidx.end(), "refund request not found");
-    // dist_rewards(to, provider, service);
-    // uint64_t secondsLeft = 
-    //     (req->unstake_time - current_time_ms) / 1000; // calc how much left
-    // if(req->unstake_time < current_time_ms)
-    //   secondsLeft = 0;
-    // if (secondsLeft > 0) {
-    //   scheduleRefund(secondsLeft, to, to, provider, service, symcode);
-    //   return;
-    // }
-
-    // auto quantity = req->amount;
-    // accountexts_t accountexts(_self, DAPPSERVICES_SYMBOL.code().raw());
-    // auto idxKeyAcct =
-    //     accountext::_by_account_service_provider(to, service, provider);
-    // auto cidxacct = accountexts.get_index<"byprov"_n>();
-    // auto acct = cidxacct.find(idxKeyAcct);
-    // auto sym = quantity.symbol;
-    
-    // if(acct != cidxacct.end() && DAPPSERVICES_SYMBOL == sym){
-    //   if(quantity > acct->balance)
-    //     quantity = acct->balance;
-    //   sub_provider_balance(to, service, provider, quantity);
-    //   sub_total_staked(quantity);
-    //   add_balance(to, quantity, to);
-    // }
-    // cidx.erase(req);
     refundto(to,to,provider,service,symcode);
   }
 
   [[eosio::action]] void refundto(name from, name to, name provider, name service, symbol_code symcode) {
-    require_auth(from);      
-
+    //no auth required
     auto current_time_ms = current_time_point().time_since_epoch().count() / 1000;
     refunds_table refunds_tbl(_self, from.value);
     auto idxKey =
