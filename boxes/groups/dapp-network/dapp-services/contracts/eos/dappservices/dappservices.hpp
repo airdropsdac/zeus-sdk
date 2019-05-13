@@ -396,6 +396,7 @@ typedef eosio::multi_index<
   auto acct = cidx.find(idxKey);                                               
   std::vector<name> result; 
   while(acct != cidx.end()){ 
+    if(acct->account != account || acct->service != service) return result;
     result.push_back(acct->provider); 
     acct++;
   }

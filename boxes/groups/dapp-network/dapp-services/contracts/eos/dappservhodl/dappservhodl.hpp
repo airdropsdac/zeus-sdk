@@ -1,8 +1,8 @@
 #pragma once
 
-#include <eosiolib/asset.hpp>
-#include <eosiolib/eosio.hpp>
-#include <eosiolib/time.hpp>
+#include <eosio/asset.hpp>
+#include <eosio/eosio.hpp>
+#include <eosio/time.hpp>
 
 #include <string>
 
@@ -25,7 +25,7 @@ namespace dappservhodl {
          void issue( name to, asset quantity, string memo );
 
          [[eosio::action]]
-         void activate( const symbol& symbol, time_point_sec start, time_point_sec end);
+         void activate( const symbol& symbol, uint32_t start, uint32_t end);
 
          [[eosio::action]]
          void grab( name owner, const symbol& symbol, name ram_payer );
@@ -39,8 +39,11 @@ namespace dappservhodl {
          [[eosio::action]] 
          void unstake( name owner, name provider, name service, asset quantity);
 
+         [[eosio::action]] 
+         void refund( name owner, name provider, name service, asset quantity);
+
          //external action to watch
-         void refund(name from, name to, asset quantity);
+         void refunded(name from, name to, asset quantity);
 
          static asset get_supply( name token_contract_account, symbol_code sym_code )
          {
@@ -65,6 +68,7 @@ namespace dappservhodl {
 
          struct [[eosio::table]] account {
             asset    balance;
+            asset    allocation;
             asset    staked;
             bool     claimed;
 
@@ -76,8 +80,8 @@ namespace dappservhodl {
             asset    max_supply;
             name     issuer;
             asset    forfeiture;
-            time_point_sec vesting_start;
-            time_point_sec vesting_end;
+            uint32_t vesting_start;
+            uint32_t vesting_end;
 
             uint64_t primary_key()const { return supply.symbol.code().raw(); }
          };
