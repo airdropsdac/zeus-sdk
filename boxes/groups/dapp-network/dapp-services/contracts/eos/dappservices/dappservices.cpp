@@ -604,7 +604,7 @@ public:
 
       action(permission_level{_self, "active"_n}, 
         _self, "refreceipt"_n,
-        std::make_tuple(_self, from, quantity))
+        std::make_tuple(from, to, quantity))
       .send();
     }
     cidx.erase(req);
