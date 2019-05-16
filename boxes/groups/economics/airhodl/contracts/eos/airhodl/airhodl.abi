@@ -30,10 +30,6 @@
             "base": "",
             "fields": [
                 {
-                    "name": "symbol",
-                    "type": "symbol"
-                },
-                {
                     "name": "start",
                     "type": "time_point"
                 },
@@ -96,10 +92,6 @@
                     "type": "name"
                 },
                 {
-                    "name": "symbol",
-                    "type": "symbol"
-                },
-                {
                     "name": "ram_payer",
                     "type": "name"
                 }
@@ -138,10 +130,6 @@
                 {
                     "name": "service",
                     "type": "name"
-                },
-                {
-                    "name": "symcode",
-                    "type": "symbol_code"
                 }
             ]
         },
@@ -196,10 +184,6 @@
                 {
                     "name": "owner",
                     "type": "name"
-                },
-                {
-                    "name": "symbol",
-                    "type": "symbol"
                 }
             ]
         }

@@ -12,7 +12,9 @@ using namespace std;
 
 namespace airhodl {
 
-   const name TOKEN = "dappservices"_n;
+   const name     DAPP_TOKEN = "dappservices"_n;
+   const symbol   DAPP_SYMBOL = symbol("DAPP",4);
+   const symbol   HODL_SYMBOL = symbol("HODL",4);
 
    class [[eosio::contract("airhodl")]] airhodl : public contract {
       public:
@@ -26,13 +28,13 @@ namespace airhodl {
          void issue( name to, asset quantity, string memo );
 
          [[eosio::action]]
-         void activate( const symbol& symbol, time_point start, time_point end);
+         void activate( time_point start, time_point end);
 
          [[eosio::action]]
-         void grab( name owner, const symbol& symbol, name ram_payer );
+         void grab( name owner, name ram_payer );
 
          [[eosio::action]]
-         void withdraw( name owner, const symbol& symbol );
+         void withdraw( name owner );
 
          [[eosio::action]] 
          void stake( name owner, name provider, name service, asset quantity);
@@ -41,7 +43,7 @@ namespace airhodl {
          void unstake( name owner, name provider, name service, asset quantity);
 
          [[eosio::action]] 
-         void refund( name owner, name provider, name service, symbol_code symcode);
+         void refund( name owner, name provider, name service );
 
          [[eosio::on_notify("dappservices::refreceipt")]]
          void on_receipt(name from, name to, asset quantity);         
